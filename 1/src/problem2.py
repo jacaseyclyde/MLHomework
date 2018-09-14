@@ -103,10 +103,10 @@ def main():
     y_test = data.pop(0).values
     X_test = data.values
 
-    avgs = {#"Euclidean": dist((X_train, y_train), (X_test, y_test),
-            #                  metric='euclidean'),
-            #"City-block": dist((X_train, y_train), (X_test, y_test),
-            #                      metric='manhattan'),
+    avgs = {"Euclidean": dist((X_train, y_train), (X_test, y_test),
+                              metric='euclidean'),
+            "City-block": dist((X_train, y_train), (X_test, y_test),
+                               metric='manhattan'),
             "Cosine": dist((X_train, y_train), (X_test, y_test),
                            metric='pyfunc',
                            metric_params={'func': _cosine_dist})}
