@@ -46,7 +46,7 @@ def cross_val(X, y, folds=5):
     kf = KFold(n_splits=folds)
     avgs = np.array([])
     for k in np.arange(1, 11):  # range is [1, 11)
-        knn = KNeighborsClassifier(n_neighbors=k)
+        knn = KNeighborsClassifier(n_neighbors=k, n_jobs=-1)
 
         errors = np.array([])
 
