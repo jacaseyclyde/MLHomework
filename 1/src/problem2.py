@@ -73,9 +73,9 @@ def dist(train, test, metric='euclidean', metric_params=None):
     for k in tqdm(np.arange(1, 11), desc=metric):  # range is [1, 11)
         if metric_params is not None:
             knn = KNeighborsClassifier(n_neighbors=k, metric=metric,
-                                       metric_params=metric_params)
+                                       metric_params=metric_params, n_jobs=-1)
         else:
-            knn = KNeighborsClassifier(n_neighbors=k, metric=metric)
+            knn = KNeighborsClassifier(n_neighbors=k, metric=metric, n_jobs=-1)
 
         knn.fit(X_train, y_train)
         errors = np.append(errors, 1 - knn.score(X_test, y_test))
@@ -119,8 +119,7 @@ def main():
     plt.xlabel("$k$")
     plt.ylabel("Average Error Rate")
     plt.legend()
-    save_path = os.path.join(os.path.dirname(__file__), '..', 'doc',
-                             'img', 'p2.pdf')
+    save_path = os.path.join(os.path.dirname(__file__), 'p2.pdf')
     plt.savefig(save_path)
     plt.show()
 
