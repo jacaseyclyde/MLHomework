@@ -18,6 +18,8 @@ from tqdm import tqdm
 
 import matplotlib.pyplot as plt
 
+from tkinter import TclError
+
 
 def _cosine_dist(X, Y):
     """Wrapper for cosine distance metric.
@@ -121,7 +123,10 @@ def main():
     plt.legend()
     save_path = os.path.join(os.path.dirname(__file__), 'p2.pdf')
     plt.savefig(save_path)
-    plt.show()
+    try:
+        plt.show()
+    except TclError:
+        pass
 
 
 if __name__ == '__main__':
