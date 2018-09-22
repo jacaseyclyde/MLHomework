@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 
 from sklearn.metrics.pairwise import cosine_distances
-from sklearn.neighbors import KNeighborsClassifier, DistanceMetric
+from sklearn.neighbors import KNeighborsClassifier
 
 from tqdm import tqdm
 
@@ -81,8 +81,6 @@ def main():
     data = pd.read_csv(test_path, header=None, delimiter=' ')
     y_test = data.pop(0).values
     X_test = data.values
-
-    cos_dist = DistanceMetric.get_metric(cosine_distances)
 
     avgs = {"Cosine": dist((X_train, y_train), (X_test, y_test),
                            metric=cosine_distances),
