@@ -11,7 +11,6 @@ import os
 import numpy as np
 import pandas as pd
 
-from sklearn.metrics.pairwise import cosine_distances
 from sklearn.neighbors import KNeighborsClassifier
 
 from tqdm import tqdm
@@ -87,7 +86,8 @@ def linear_dist(distances):
         The cosine distance between X and Y.
 
     """
-    return ((distances[-1] - distances[0]) / len(distances))
+    return (np.max(distances) - distances) / \
+           (np.max(distances) - np.min(distances))
 
 
 def weights(train, test, weights=inverse_dist):
@@ -135,13 +135,13 @@ def main():
     """
     # pylint: disable=C0103
     train_path = os.path.join(os.path.dirname(__file__),
-                              '..', '..', '..', 'data', 'zip.train')
+                              '..', '..', 'data', 'zip.train')
     data = pd.read_csv(train_path, header=None, delimiter=' ').iloc[:, :-1]
     y_train = data.pop(0).values
     X_train = data.values
 
     test_path = os.path.join(os.path.dirname(__file__),
-                             '..', '..', '..', 'data', 'zip.test')
+                             '..', '..', 'data', 'zip.test')
     data = pd.read_csv(test_path, header=None, delimiter=' ')
     y_test = data.pop(0).values
     X_test = data.values
@@ -157,7 +157,7 @@ def main():
     for key, marker in zip(avgs, ['b^-', 'gv-', 'ro-']):
         plt.plot(range(1, 11), avgs[key], marker, label=key)
 
-    plt.title("$k$NN: Error rate vs. $k$ neighbors")
+    plt.title("$k$NN Weighting Functions: Error rate vs. $k$ neighbors")
     plt.xlabel("$k$")
     plt.ylabel("Average Error Rate")
     plt.legend()
