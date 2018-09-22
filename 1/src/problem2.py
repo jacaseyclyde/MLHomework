@@ -21,30 +21,6 @@ import matplotlib.pyplot as plt
 from tkinter import TclError
 
 
-def _cosine_dist(X, Y):
-    """Wrapper for cosine distance metric.
-
-    This function is just a wrapper ofr sklearns built in cosine_distance
-    metric. This is necessary due to the shapes of each entry, which need to be
-    reshaped for the distance metric to handle them properly.
-
-    Parameters
-    ----------
-    X : array_like
-        The first datapoint.
-    Y : array_like
-        The second datapoint.
-
-    Returns
-    -------
-    float
-        The cosine distance between X and Y.
-
-    """
-    cos_dist = cosine_distances(X.reshape(1, -1), Y.reshape(1, -1))
-    return cos_dist
-
-
 def dist(train, test, metric='euclidean', metric_params=None):
     """Distance metric evaluator.
 
@@ -72,12 +48,13 @@ def dist(train, test, metric='euclidean', metric_params=None):
     X_test, y_test = test
 
     errors = np.array([])
-    for k in tqdm(np.arange(1, 11), desc=metric):  # range is [1, 11)
+    for k in tqdm(np.arange(1, 11)):  # range is [1, 11)
         if metric_params is not None:
             knn = KNeighborsClassifier(n_neighbors=k, metric=metric,
                                        metric_params=metric_params, n_jobs=-1)
         else:
-            knn = KNeighborsClassifier(n_neighbors=k, metric=metric, n_jobs=-1)
+            knn = KNeighborsClassifier(n_neighbors=k, metric=metric, n_jobs=-1,
+                                       algorithm='brute')
 
         knn.fit(X_train, y_train)
         errors = np.append(errors, 1 - knn.score(X_test, y_test))
@@ -94,30 +71,30 @@ def main():
     """
     # pylint: disable=C0103
     train_path = os.path.join(os.path.dirname(__file__),
-                              '..', '..', '..', 'data', 'zip.train')
+                              '..', '..', 'data', 'zip.train')
     data = pd.read_csv(train_path, header=None, delimiter=' ').iloc[:, :-1]
     y_train = data.pop(0).values
     X_train = data.values
 
     test_path = os.path.join(os.path.dirname(__file__),
-                             '..', '..', '..', 'data', 'zip.test')
+                             '..', '..', 'data', 'zip.test')
     data = pd.read_csv(test_path, header=None, delimiter=' ')
     y_test = data.pop(0).values
     X_test = data.values
 
-    avgs = {"Euclidean": dist((X_train, y_train), (X_test, y_test),
+    avgs = {"Cosine": dist((X_train, y_train), (X_test, y_test),
+                           metric=cosine_distances),
+            "Euclidean": dist((X_train, y_train), (X_test, y_test),
                               metric='euclidean'),
             "City-block": dist((X_train, y_train), (X_test, y_test),
-                               metric='manhattan'),
-            "Cosine": dist((X_train, y_train), (X_test, y_test),
-                           metric='pyfunc',
-                           metric_params={'func': _cosine_dist})}
+                               metric='manhattan')
+            }
 
     plt.figure(figsize=(12, 12))
     for key, marker in zip(avgs, ['b^-', 'gv-', 'ro-']):
         plt.plot(range(1, 11), avgs[key], marker, label=key)
 
-    plt.title("$k$NN: Error rate vs. $k$ neighbors")
+    plt.title("$k$NN Distance Metrics: Error rate vs. $k$ neighbors")
     plt.xlabel("$k$")
     plt.ylabel("Average Error Rate")
     plt.legend()

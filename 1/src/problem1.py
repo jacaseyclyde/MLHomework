@@ -11,6 +11,8 @@ import os
 import numpy as np
 import pandas as pd
 
+from sklearn.datasets import load_iris
+
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import KFold
 
@@ -71,7 +73,7 @@ def main():
     """
     # pylint: disable=C0103
     data_path = os.path.join(os.path.dirname(__file__),
-                             '..', '..', '..', 'data', 'iris.data')
+                             '..', '..', 'data', 'iris.data')
     data = pd.read_csv(data_path, header=None,
                        names=["sepal-length", "sepal-width",
                               "petal-length", "petal-width", "class"])
