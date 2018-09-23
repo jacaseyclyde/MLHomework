@@ -11,8 +11,11 @@ import os
 import numpy as np
 import pandas as pd
 
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.model_selection import KFold
-from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neighbors import NearestNeighbors, KNeighborsClassifier
+
 
 import matplotlib.pyplot as plt
 
@@ -80,7 +83,47 @@ def linear_dist(distances):
            (np.max(distances) - np.min(distances))
 
 
-def k_iter(X, y, key, folds=None, metric='euclidean', weights='uniform'):
+def nlc(X, y, k, metric='euclidean'):
+    """Nearest Local Centroid classifier.
+
+    This classifier uses the nearest local centroid in the training data to
+    classify points in the testing data.
+
+    """
+    X_train, X_test = X
+    y_train, y_test = y
+    distances = None
+    for j in np.unique(y_train):
+        # for the current class, get the k nearest neighbors for each test
+        # point, without individual distances
+        clf = NearestNeighbors(n_neighbors=k, n_jobs=-1)
+        clf.fit(X_train[y_train == j])
+        neighbors = clf.kneighbors(X_test, return_distance=False)
+
+        # calculate the centroid of the k nearest neighbors in class j for
+        # each test point
+        cents = np.mean(X_test[neighbors], axis=1)
+
+        if distances is not None:
+            # calculate the distance between each point and it's local centroid
+            # for the current class. This is not necessarily the average of the
+            # distance to each point comprising the centroid
+            distance = np.array([np.diagonal(pairwise_distances(X_test,
+                                                                cents))]).T
+            distances = np.append(distances, distance, axis=1)
+        else:
+            distances = np.array([np.diagonal(pairwise_distances(X_test,
+                                                                 cents))]).T
+
+    print(distances, np.min(distances, axis=1))
+
+    y_pred = np.argmin(distances, axis=1)
+    return confusion_matrix(y_test, y_pred)
+
+
+
+def k_iter(X, y, key, classifier=None, folds=None,
+           metric='euclidean', weights='uniform'):
     """k-neighbors iterator.
 
     Iterates through [1:k] neighbors for a kNN classifier, allowing for
@@ -112,26 +155,29 @@ def k_iter(X, y, key, folds=None, metric='euclidean', weights='uniform'):
 
     errors = np.array([])
     for k in tqdm(np.arange(1, 11), desc=key):  # range is [1, 11)
-        knn = KNeighborsClassifier(n_neighbors=k, metric=metric,
-                                   weights=weights, algorithm='auto',
-                                   n_jobs=-1)
-        if folds is not None:
-            kf = KFold(n_splits=folds)
-            scores = np.array([])
-            for train_index, test_index in kf.split(X):
-                X_train, X_test = X[train_index], X[test_index]
-                y_train, y_test = y[train_index], y[test_index]
+        if classifier is not None:
+            conf = classifier(X, y, k)
+        else:
+            knn = KNeighborsClassifier(n_neighbors=k, metric=metric,
+                                       weights=weights, algorithm='auto',
+                                       n_jobs=-1)
+            if folds is not None:
+                kf = KFold(n_splits=folds)
+                scores = np.array([])
+                for train_index, test_index in kf.split(X):
+                    X_train, X_test = X[train_index], X[test_index]
+                    y_train, y_test = y[train_index], y[test_index]
+
+                    knn.fit(X_train, y_train)
+                    scores = np.append(scores, knn.score(X_test, y_test))
+
+                error = 1 - scores.mean()
+            else:
+                X_train, X_test = X
+                y_train, y_test = y
 
                 knn.fit(X_train, y_train)
-                scores = np.append(scores, knn.score(X_test, y_test))
-
-            error = 1 - scores.mean()
-        else:
-            X_train, X_test = X
-            y_train, y_test = y
-
-            knn.fit(X_train, y_train)
-            error = 1 - knn.score(X_test, y_test)
+                error = 1 - knn.score(X_test, y_test)
 
         errors = np.append(errors, error)
 
@@ -161,22 +207,22 @@ def main():
 
     """
     # pylint: disable=C0103
-    # Problem 1
-    data_path = os.path.join(os.path.dirname(__file__), 'data', 'iris.data')
-    data = pd.read_csv(data_path)
-    y = data.pop("species").values
-    X = data.values
-
-    keys = ["5-fold cross validation", "10-fold cross validation",
-            "Leave-one-out cross validation"]
-    errors = {keys[0]: k_iter(X, y, keys[0], folds=5),
-              keys[1]: k_iter(X, y, keys[1], folds=10),
-              keys[2]: k_iter(X, y, keys[2], folds=len(y))}
-
-    title = "$k$NN, m-fold Cross Validation: Error rate vs. $k$ neighbors"
-    plot_results(errors, title=title, out='p1.pdf')
-
-    # Problem 2
+#    # Problem 1
+#    data_path = os.path.join(os.path.dirname(__file__), 'data', 'iris.data')
+#    data = pd.read_csv(data_path)
+#    y = data.pop("species").values
+#    X = data.values
+#
+#    keys = ["5-fold cross validation", "10-fold cross validation",
+#            "Leave-one-out cross validation"]
+#    errors = {keys[0]: k_iter(X, y, keys[0], folds=5),
+#              keys[1]: k_iter(X, y, keys[1], folds=10),
+#              keys[2]: k_iter(X, y, keys[2], folds=len(y))}
+#
+#    title = "$k$NN, m-fold Cross Validation: Error rate vs. $k$ neighbors"
+#    plot_results(errors, title=title, out='p1.pdf')
+#
+#    # Problem 2
     train_path = os.path.join(os.path.dirname(__file__), 'data', 'zip.train')
     data = pd.read_csv(train_path, header=None, delimiter=' ').iloc[:, :-1]
     y_train = data.pop(0).values
@@ -189,24 +235,39 @@ def main():
 
     X = (X_train, X_test)
     y = (y_train, y_test)
+#
+#    keys = ["Cosine", "Euclidean", "City-Block"]
+#    errors = {keys[0]: k_iter(X, y, keys[0], metric='cosine'),
+#              keys[1]: k_iter(X, y, keys[1], metric='euclidean'),
+#              keys[2]: k_iter(X, y, keys[2], metric='manhattan')
+#              }
+#
+#    title = "$k$NN Distance Metrics: Error rate vs. $k$ neighbors"
+#    plot_results(errors, title=title, out='p2.pdf')
+#
+#    # Problem 3
+#    keys = ["Inverse", "Square Inverse", "Linear"]
+#    errors = {keys[0]: k_iter(X, y, keys[0], weights=inverse_dist),
+#              keys[1]: k_iter(X, y, keys[1], weights=square_inverse_dist),
+#              keys[2]: k_iter(X, y, keys[2], weights=linear_dist)}
+#    print(type(errors))
+#
+#    title = "k$NN Weighting Functions: Error rate vs. $k$ neighbors"
+#    plot_results(errors, title=title, out='p3.pdf')
 
-    keys = ["Cosine", "Euclidean", "City-Block"]
-    errors = {keys[0]: k_iter(X, y, keys[0], metric='cosine'),
-              keys[1]: k_iter(X, y, keys[1], metric='euclidean'),
-              keys[2]: k_iter(X, y, keys[2], metric='manhattan')
-              }
+    # Problem 4
+#    errors = k_iter(X, y, "NLC", classifier=nlc)
+    conf = nlc(X, y, 1)
+#    print(conf, 1 - np.sum(np.diagonal(conf)) / np.sum(conf))
 
-    title = "$k$NN Distance Metrics: Error rate vs. $k$ neighbors"
-    plot_results(errors, title=title, out='p2.pdf')
+    knn = KNeighborsClassifier(n_neighbors=1)
+    knn.fit(X_train, y_train)
+    y_pred = knn.predict(X_test)
+#    conf = confusion_matrix(y_test, y_pred)
+#    print(conf, 1 - np.sum(np.diagonal(conf)) / np.sum(conf))
 
-    # Problem 3
-    keys = ["Inverse", "Square Inverse", "Linear"]
-    errors = {keys[0]: k_iter(X, y, keys[0], weights=inverse_dist),
-              keys[1]: k_iter(X, y, keys[1], weights=square_inverse_dist),
-              keys[2]: k_iter(X, y, keys[2], weights=linear_dist)}
-
-    title = "k$NN Weighting Functions: Error rate vs. $k$ neighbors"
-    plot_results(errors, title=title, out='p3.pdf')
+    title = "k$NN Nearest Local Centroid: Error rate vs. $k$ neighbors"
+#    plot_results(errors, title=title, out='p4.pdf')
 
 
 if __name__ == "__main__":
