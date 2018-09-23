@@ -97,12 +97,13 @@ def nlc(X, y, k, metric='euclidean'):
         # for the current class, get the k nearest neighbors for each test
         # point, without individual distances
         clf = NearestNeighbors(n_neighbors=k, n_jobs=-1)
-        clf.fit(X_train[y_train == j])
+        X_cls = X_train[y_train == j]
+        clf.fit(X_cls)
         neighbors = clf.kneighbors(X_test, return_distance=False)
 
         # calculate the centroid of the k nearest neighbors in class j for
         # each test point
-        cents = np.mean(X_test[neighbors], axis=1)
+        cents = np.mean(X_cls[neighbors], axis=1)
 
         if distances is not None:
             # calculate the distance between each point and it's local centroid
@@ -115,11 +116,8 @@ def nlc(X, y, k, metric='euclidean'):
             distances = np.array([np.diagonal(pairwise_distances(X_test,
                                                                  cents))]).T
 
-    print(distances, np.min(distances, axis=1))
-
     y_pred = np.argmin(distances, axis=1)
     return confusion_matrix(y_test, y_pred)
-
 
 
 def k_iter(X, y, key, classifier=None, folds=None,
@@ -157,6 +155,7 @@ def k_iter(X, y, key, classifier=None, folds=None,
     for k in tqdm(np.arange(1, 11), desc=key):  # range is [1, 11)
         if classifier is not None:
             conf = classifier(X, y, k)
+            error = 1 - np.sum(np.diagonal(conf)) / np.sum(conf)
         else:
             knn = KNeighborsClassifier(n_neighbors=k, metric=metric,
                                        weights=weights, algorithm='auto',
@@ -256,15 +255,13 @@ def main():
 #    plot_results(errors, title=title, out='p3.pdf')
 
     # Problem 4
-#    errors = k_iter(X, y, "NLC", classifier=nlc)
-    conf = nlc(X, y, 1)
-#    print(conf, 1 - np.sum(np.diagonal(conf)) / np.sum(conf))
+    errors = k_iter(X, y, "NLC", classifier=nlc)
 
-    knn = KNeighborsClassifier(n_neighbors=1)
+    knn = KNeighborsClassifier(n_neighbors=1, metric='euclidean')
     knn.fit(X_train, y_train)
     y_pred = knn.predict(X_test)
-#    conf = confusion_matrix(y_test, y_pred)
-#    print(conf, 1 - np.sum(np.diagonal(conf)) / np.sum(conf))
+    conf = confusion_matrix(y_test, y_pred)
+    print(conf, 1 - np.sum(np.diagonal(conf)) / np.sum(conf))
 
     title = "k$NN Nearest Local Centroid: Error rate vs. $k$ neighbors"
 #    plot_results(errors, title=title, out='p4.pdf')
