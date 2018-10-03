@@ -25,8 +25,8 @@ from tqdm import tqdm
 def inverse_dist(distances):
     """Inverse distance weighting function.
 
-    Weighting function that uses the inverse distance to weight each neighbor
-    in kNN classification.
+    Weighting function that uses the inverse distance to weight each
+    neighbor in kNN classification.
 
     Parameters
     ----------
@@ -47,8 +47,8 @@ def inverse_dist(distances):
 def sq_inverse_dist(distances):
     """Square inverse distance weighting function.
 
-    Weighting function that uses the square inverse distance to weight each
-    neighbor in kNN classification.
+    Weighting function that uses the square inverse distance to weight
+    each neighbor in kNN classification.
 
     Parameters
     ----------
@@ -69,8 +69,8 @@ def sq_inverse_dist(distances):
 def linear_dist(distances):
     """Linear distance weighting function.
 
-    Weighting function that uses a linear function to weight each neighbor in
-    kNN classification.
+    Weighting function that uses a linear function to weight each
+    neighbor in kNN classification.
 
     Parameters
     ----------
@@ -91,13 +91,14 @@ def linear_dist(distances):
 def nlc(X, y, k):
     """Nearest Local Centroid classifier.
 
-    This classifier uses the nearest local centroid in the training data to
-    classify points in the testing data.
+    This classifier uses the nearest local centroid in the training
+    data to classify points in the testing data.
 
     Parameters
     ----------
     X : (array_like, array_like)
-        Feature columns of data to use for training/testing, respectivley.
+        Feature columns of data to use for training/testing,
+        respectivley.
     y : (array_liuke, array_like)
         Classes for training/testing data, respectivley.
     k : int
@@ -113,21 +114,22 @@ def nlc(X, y, k):
     y_train, y_test = y
     distances = None
     for j in np.unique(y_train):
-        # for the current class, get the k nearest neighbors for each test
-        # point, without individual distances
+        # for the current class, get the k nearest neighbors for each
+        # test point, without individual distances
         clf = NearestNeighbors(n_neighbors=k, n_jobs=-1)
         X_cls = X_train[y_train == j]
         clf.fit(X_cls)
         neighbors = clf.kneighbors(X_test, return_distance=False)
 
-        # calculate the centroid of the k nearest neighbors in class j for
-        # each test point
+        # calculate the centroid of the k nearest neighbors in class j
+        # for each test point
         cents = np.mean(X_cls[neighbors], axis=1)
 
         if distances is not None:
-            # calculate the distance between each point and it's local centroid
-            # for the current class. This is not necessarily the average of the
-            # distance to each point comprising the centroid
+            # calculate the distance between each point and it's local
+            # centroid for the current class. This is not necessarily
+            # the average of the distance to each point comprising the
+            # centroid
             distance = np.array([np.diagonal(pairwise_distances(X_test,
                                                                 cents))]).T
             distances = np.append(distances, distance, axis=1)
@@ -143,18 +145,20 @@ def k_iter(X, y, key, classifier=None, folds=None,
     """k-neighbors iterator.
 
     Iterates through [1:k] neighbors for a kNN classifier, allowing for
-    comparisons of different kNN setups for differing numbers of neighbors.
+    comparisons of different kNN setups for differing numbers of
+    neighbors.
 
     Parameters
     ----------
     X : array_like or (array_like, array_like)
         The dataset(s) to use for training and testing.
     y : array_like or (array_like, array_like)
-        The labels corresponding to the datapoints in X. The length of y should
-        match the first dimension of X. i.e., it should have length l.
+        The labels corresponding to the datapoints in X. The length of
+        y should match the first dimension of X. i.e., it should have
+        length l.
     folds : int, optional (default = None)
-        The number of folds to use in m-fold cross validation. If `None`,
-        cross-validation will not be performed.
+        The number of folds to use in m-fold cross validation. If
+        `None`, cross-validation will not be performed.
     metric : string, optional (default = 'euclidean')
         The distance metric to use.
     weights : string or callable, optional (default = 'uniform')
@@ -163,8 +167,8 @@ def k_iter(X, y, key, classifier=None, folds=None,
     Returns
     -------
     `numpy.ndarray`
-        An array of the classification error rate for each k=[1:10], or the
-        average rate if `folds` is not `None`.
+        An array of the classification error rate for each k=[1:10], or
+        the average rate if `folds` is not `None`.
 
     """
     # pylint: disable=C0103
@@ -239,8 +243,9 @@ def plot_results(errors, title="$k$NN: Error rate vs. $k$ neighbors",
 def main():
     """The main run function.
 
-    This is the main function that handles the running of all other functions,
-    as well as the overall execution of the solution to problem 1 of HW1.
+    This is the main function that handles the running of all other
+    functions, as well as the overall execution of the solution to
+    problem 1 of HW1.
 
     """
     # pylint: disable=C0103
@@ -325,9 +330,10 @@ def main():
     print(confusion_matrix(y_test, y_pred))
 
     # Problem 5
-    # Here I am using photometric stellar data from SDSS. For simplicity, it
-    # has been limited to main sequence stars. It's data must also be
-    # processed, since the magnitudes are biased by distance, which is unknown.
+    # Here I am using photometric stellar data from SDSS. For
+    # simplicity, it has been limited to main sequence stars. It's data
+    # must also be processed, since the magnitudes are biased by
+    # distance, which is unknown.
     photo_data = pd.read_csv('data/photo.data')
     y = photo_data.pop('class').values
     X = np.array([(photo_data['u'] - photo_data['g']).values,
@@ -341,7 +347,8 @@ def main():
               keys[1]: k_iter(X, y, keys[1], metric='euclidean', folds=10),
               keys[2]: k_iter(X, y, keys[2], metric='manhattan', folds=10),
               keys[3]: k_iter(X, y, keys[3], weights=inverse_dist, folds=10),
-              keys[4]: k_iter(X, y, keys[4], weights=sq_inverse_dist, folds=10),
+              keys[4]: k_iter(X, y, keys[4], weights=sq_inverse_dist,
+                              folds=10),
               keys[5]: k_iter(X, y, keys[5], weights=linear_dist, folds=10)
               }
 #    errors = k_iter(X, y, "SDSS", folds=100)
