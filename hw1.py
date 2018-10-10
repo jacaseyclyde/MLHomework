@@ -16,8 +16,9 @@ from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.model_selection import KFold
 from sklearn.neighbors import NearestNeighbors, KNeighborsClassifier
 
-
+import matplotlib as mpl
 import matplotlib.pyplot as plt
+import itertools
 
 from tqdm import tqdm
 
@@ -184,6 +185,8 @@ def k_iter(X, y, key, classifier=None, folds=None,
             error = 1 - np.sum(np.diagonal(conf)) / np.sum(conf)
         else:
             if weights is not 'uniform':
+                # use k + 1 neighbors because weithing functions are
+                # implemented such that the last weight is 0
                 knn = KNeighborsClassifier(n_neighbors=k + 1, metric=metric,
                                            weights=weights, algorithm='auto',
                                            n_jobs=-1)
@@ -223,10 +226,11 @@ def k_iter(X, y, key, classifier=None, folds=None,
 
 def plot_results(errors, title="$k$NN: Error rate vs. $k$ neighbors",
                  out='out.pdf'):
+    marker = itertools.cycle(('.', '+', 'v', '^', 's', '>', '<', 'o'))
     plt.figure(figsize=(12, 12))
     if type(errors) is dict:
         for key in errors:
-            plt.plot(range(1, 11), errors[key], label=key)
+            plt.plot(range(1, 11), errors[key], label=key, marker=next(marker))
 
         plt.legend()
     else:
@@ -272,14 +276,14 @@ def main():
 
     # Problem 2
     usps_train_path = os.path.join(os.path.dirname(__file__),
-                                   'data', 'zip.train')
+                                   'data', 'usps', 'zip.train')
     usps_train_data = pd.read_csv(usps_train_path,
                                   header=None, delimiter=' ').iloc[:, :-1]
     y_train = usps_train_data.pop(0).values
     X_train = usps_train_data.values
 
     usps_test_path = os.path.join(os.path.dirname(__file__),
-                                  'data', 'zip.test')
+                                  'data', 'usps', 'zip.test')
     usps_test_data = pd.read_csv(usps_test_path, header=None, delimiter=' ')
     y_test = usps_test_data.pop(0).values
     X_test = usps_test_data.values
@@ -341,6 +345,8 @@ def main():
                   (photo_data['r'] - photo_data['i']).values,
                   (photo_data['i'] - photo_data['z']).values]).T
 
+    print("SDSS Set Size: {0} observations".format(len(y)))
+
     keys = ["Cosine", "Euclidean", "City-Block",
             "Inverse", "Square Inverse", "Linear"]
     errors = {keys[0]: k_iter(X, y, keys[0], metric='cosine', folds=10),
@@ -363,4 +369,6 @@ def main():
 
 
 if __name__ == "__main__":
+    font = {'size': 24}
+    mpl.rc('font', **font)
     main()

@@ -79,8 +79,9 @@ def pca_plot(X, desc, labels=None, out='pca.pdf'):
     plt.xlabel("pc1")
     plt.ylabel("pc2")
     plt.title("First Two Principal Components: {0}".format(desc))
+    plt.grid()
     save_path = os.path.join(os.path.dirname(__file__), out)
-    plt.savefig(save_path)
+    plt.savefig(save_path, bbox_inches='tight')
     plt.show()
 
 
@@ -228,8 +229,9 @@ def plot_results(errors, title="Error rate vs. $k$ Neighbors",
     plt.title(title)
     plt.xlabel("$k$")
     plt.ylabel("Error Rate")
+    plt.grid()
     save_path = os.path.join(os.path.dirname(__file__), out)
-    plt.savefig(save_path)
+    plt.savefig(save_path, bbox_inches='tight')
     plt.show()
 
 
@@ -255,6 +257,7 @@ def plot_times(times, title="Run Time vs. $k$ Neighbors", out='times.pdf'):
     plt.title(title)
     plt.xlabel("$k$")
     plt.ylabel("Run Time (s)")
+    plt.grid()
     save_path = os.path.join(os.path.dirname(__file__), out)
     plt.savefig(save_path, bbox_extra_artists=(lgd,), bbox_inches='tight')
     plt.show()
@@ -481,6 +484,7 @@ def main():
 
 
 if __name__ == '__main__':
-    font = {'size': 20}
+    # set any global matplotlib settings
+    font = {'size': 24}
     mpl.rc('font', **font)
     main()
