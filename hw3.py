@@ -7,6 +7,7 @@ Created on Tue Oct  9 18:21:20 2018
 """
 import os
 import sys
+import itertools
 
 from tqdm import tqdm
 
@@ -19,10 +20,9 @@ from sklearn.metrics import confusion_matrix
 from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.neighbors import KNeighborsClassifier, NearestNeighbors
 
-import itertools
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
+from matplotlib import ticker
 
 
 def pca_lda_plot(X, y, components=0.95,
