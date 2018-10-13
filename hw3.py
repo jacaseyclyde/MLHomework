@@ -15,8 +15,9 @@ import pandas as pd
 
 from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
-from sklearn.model_selection import train_test_split
-from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics.pairwise import pairwise_distances
+from sklearn.neighbors import KNeighborsClassifier, NearestNeighbors
 
 import itertools
 import matplotlib as mpl
@@ -57,13 +58,13 @@ def pca_lda_plot(X, y, components=0.95,
 
     lgd = plt.legend(bbox_to_anchor=(1, 1), loc="upper left")
     plt.title(title)
-    plt.show()
 
     save_path = os.path.join(os.path.dirname(__file__), out)
     plt.savefig(save_path, bbox_extra_artists=(lgd,), bbox_inches='tight')
+    plt.show()
 
 
-def pca_lda_knn(X, y, lda_flag=True):
+def pca_lda(X, y, lda_flag=True, nlc_flag=False):
     kmax = 10
     X_train, X_test = X
     y_train, y_test = y
@@ -84,13 +85,72 @@ def pca_lda_knn(X, y, lda_flag=True):
         desc = "PCA + kNN"
 
     errors = np.array([])
-    for k in tqdm(np.arange(1, kmax + 1), desc=desc, file=sys.stdout):
-        knn = KNeighborsClassifier(n_neighbors=k)
-        knn.fit(X_train, y_train)
+    if nlc_flag:
+        for k in tqdm(np.arange(1, kmax + 1), desc=desc, file=sys.stdout):
+            errors = np.append(errors, 1 - nlc((X_train, X_test),
+                                               (y_train, y_test), k))
+    else:
+        for k in tqdm(np.arange(1, kmax + 1), desc=desc, file=sys.stdout):
+            knn = KNeighborsClassifier(n_neighbors=k)
+            knn.fit(X_train, y_train)
 
-        errors = np.append(errors, 1 - knn.score(X_test, y_test))
+            errors = np.append(errors, 1 - knn.score(X_test, y_test))
 
     return errors
+
+
+def nlc(X, y, k):
+    """Nearest Local Centroid classifier.
+
+    This classifier uses the nearest local centroid in the training
+    data to classify points in the testing data.
+
+    Parameters
+    ----------
+    X : (array_like, array_like)
+        Feature columns of data to use for training/testing,
+        respectivley.
+    y : (array_liuke, array_like)
+        Classes for training/testing data, respectivley.
+    k : int
+        Number of neighbors to use for each centroid.
+
+    Returns
+    -------
+    array_like
+        The predicted classes.
+
+    """
+    X_train, X_test = X
+    y_train, y_test = y
+    distances = None
+    y_classes = np.unique(y_train)
+    for j in y_classes:
+        # for the current class, get the k nearest neighbors for each
+        # test point, without individual distances
+        clf = NearestNeighbors(n_neighbors=k, n_jobs=-1)
+        X_cls = X_train[y_train == j]
+        clf.fit(X_cls)
+
+        # calculate the centroid of the k nearest neighbors in class j
+        # for each test point
+        cents = np.mean(X_cls[clf.kneighbors(X_test, return_distance=False)],
+                        axis=1)
+
+        if distances is not None:
+            # calculate the distance between each point and it's local
+            # centroid for the current class. This is not necessarily
+            # the average of the distance to each point comprising the
+            # centroid
+            distance = np.array([np.diagonal(pairwise_distances(X_test,
+                                                                cents))]).T
+            distances = np.append(distances, distance, axis=1)
+        else:
+            distances = np.array([np.diagonal(pairwise_distances(X_test,
+                                                                 cents))]).T
+
+    conf = confusion_matrix(y_test, y_classes[np.argmin(distances, axis=1)])
+    return np.sum(np.diagonal(conf)) / np.sum(conf)
 
 
 def plot_results(errors, title="Error rate vs. $k$ Neighbors",
@@ -125,103 +185,98 @@ def min_vals(vals, label="Values"):
             min_k = np.where(val == min_val)[0][0]
 
     print("{0}: min val = {1}, label = {2}, k = {3}".format(label, min_val,
-          min_key, min_k + 1))
+                                                            min_key,
+                                                            min_k + 1))
 
 
 def main():
     # Problem 1
     # load iris data
-    iris_data_path = os.path.join(os.path.dirname(__file__),
-                                  'data', 'iris.data')
-    iris_data = pd.read_csv(iris_data_path)
+    iris_data = pd.read_csv(os.path.join(os.path.dirname(__file__),
+                                         'data', 'iris.data'))
     y = iris_data.pop("species").values
-    X = iris_data.values
 
     pca = PCA(n_components=2)
-    X_pca = pca.fit_transform(X)
-
     lda = LDA(n_components=2)
-    X_lda = lda.fit_transform(X_pca, y)
+    X_lda = lda.fit_transform(pca.fit_transform(iris_data.values), y)
 
     pca_lda_plot(X_lda, y, components=2,
                  title="2 Component PCA + LDA", out='hw3/pca_lda_2c.pdf')
 
     # Problem 3
-    data = pd.read_csv('data/usps/zip.train',
+    data = pd.read_csv(os.path.join(os.path.dirname(__file__),
+                                    'data', 'usps', 'zip.train'),
                        header=None, delimiter=' ').iloc[:, :-1]
     y_train = data.pop(0).values
     X_train = data.values
 
     # 3a
-    X_0 = X_train[y_train == 0]
-    y_0 = y_train[y_train == 0]
-
-    X_1 = X_train[y_train == 1]
-    y_1 = y_train[y_train == 1]
-
-    X_01 = np.append(X_0, X_1, axis=0)
-    y_01 = np.append(y_0, y_1, axis=0)
-
-    pca_lda_plot(X_01, y_01,
+    pca_lda_plot(np.append(X_train[y_train == 0],
+                           X_train[y_train == 1], axis=0),
+                 np.append(y_train[y_train == 0],
+                           y_train[y_train == 1], axis=0),
                  title="95% PCA + LDA, USPS 0, 1",
                  out='hw3/pca_lda_01.pdf')
 
     # 3b
-    X_4 = X_train[y_train == 4]
-    y_4 = y_train[y_train == 4]
-
-    X_9 = X_train[y_train == 9]
-    y_9 = y_train[y_train == 9]
-
-    X_49 = np.append(X_4, X_9, axis=0)
-    y_49 = np.append(y_4, y_9, axis=0)
-
-    pca_lda_plot(X_49, y_49,
+    pca_lda_plot(np.append(X_train[y_train == 4],
+                           X_train[y_train == 9], axis=0),
+                 np.append(y_train[y_train == 4],
+                           y_train[y_train == 9], axis=0),
                  title="95% PCA + LDA, USPS 4, 9",
                  out='hw3/pca_lda_49.pdf')
 
     # 3c
-    X_2 = X_train[y_train == 2]
-    y_2 = y_train[y_train == 2]
-
-    X_3 = X_train[y_train == 3]
-    y_3 = y_train[y_train == 3]
-
-    X_123 = np.append(np.append(X_1, X_2, axis=0), X_3, axis=0)
-    y_123 = np.append(np.append(y_1, y_2, axis=0), y_3, axis=0)
-
-    pca_lda_plot(X_123, y_123,
+    pca_lda_plot(np.append(np.append(X_train[y_train == 1],
+                                     X_train[y_train == 2], axis=0),
+                           X_train[y_train == 3], axis=0),
+                 np.append(np.append(y_train[y_train == 1],
+                                     y_train[y_train == 2], axis=0),
+                           y_train[y_train == 3], axis=0),
                  title="95% PCA + LDA, USPS 1, 2, 3",
                  out='hw3/pca_lda_123.pdf')
 
-    X_5 = X_train[y_train == 5]
-    y_5 = y_train[y_train == 5]
-
-    X_8 = X_train[y_train == 8]
-    y_8 = y_train[y_train == 8]
-
-    X_358 = np.append(np.append(X_3, X_5, axis=0), X_8, axis=0)
-    y_358 = np.append(np.append(y_3, y_5, axis=0), y_8, axis=0)
-
-    pca_lda_plot(X_358, y_358,
+    # 3d
+    pca_lda_plot(np.append(np.append(X_train[y_train == 3],
+                                     X_train[y_train == 5], axis=0),
+                           X_train[y_train == 8], axis=0),
+                 np.append(np.append(y_train[y_train == 3],
+                                     y_train[y_train == 5], axis=0),
+                           y_train[y_train == 8], axis=0),
                  title="95% PCA + LDA, USPS 3, 5, 8",
                  out='hw3/pca_lda_358.pdf')
 
     # Problem 4
-    data = pd.read_csv('data/usps/zip.test', header=None, delimiter=' ')
+    data = pd.read_csv(os.path.join(os.path.dirname(__file__),
+                                    'data', 'usps', 'zip.test'),
+                       header=None, delimiter=' ')
     y_test = data.pop(0).values
     X_test = data.values
 
-    keys = ["PCA + LDA", "PCA"]
-    errors = {keys[0]: pca_lda_knn((X_train, X_test), (y_train, y_test),
-                                   lda_flag=True),
-              keys[1]: pca_lda_knn((X_train, X_test), (y_train, y_test),
-                                   lda_flag=False)}
+    print("--- kNN ---")
+    knn_errors = {"PCA + LDA": pca_lda((X_train, X_test), (y_train, y_test),
+                                       lda_flag=True),
+                  "PCA": pca_lda((X_train, X_test), (y_train, y_test),
+                                 lda_flag=False)
+                  }
 
-    plot_results(errors, title="$k$NN: Error rate vs. $k$ Neighbors",
+    plot_results(knn_errors, title="$k$NN: Error rate vs. $k$ Neighbors",
                  out='hw3/knn_errors.pdf')
 
-    min_vals(errors, label="Errors")
+    min_vals(knn_errors, label="kNN Errors")
+
+    # Problem 5
+    print("--- NLC ---")
+    nlc_errors = {"PCA + LDA": pca_lda((X_train, X_test), (y_train, y_test),
+                                       lda_flag=True, nlc_flag=True),
+                  "PCA": pca_lda((X_train, X_test), (y_train, y_test),
+                                 lda_flag=False, nlc_flag=True)
+                  }
+
+    plot_results(nlc_errors, title="NLC: Error rate vs. $k$ Neighbors",
+                 out='hw3/nlc_errors.pdf')
+
+    min_vals(nlc_errors, label="NLC Errors")
 
 
 if __name__ == '__main__':
