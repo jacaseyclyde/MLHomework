@@ -100,27 +100,6 @@ def pca_lda(X, y, lda_flag=True, nlc_flag=False):
 
 
 def nlc(X, y, k):
-    """Nearest Local Centroid classifier.
-
-    This classifier uses the nearest local centroid in the training
-    data to classify points in the testing data.
-
-    Parameters
-    ----------
-    X : (array_like, array_like)
-        Feature columns of data to use for training/testing,
-        respectivley.
-    y : (array_liuke, array_like)
-        Classes for training/testing data, respectivley.
-    k : int
-        Number of neighbors to use for each centroid.
-
-    Returns
-    -------
-    array_like
-        The predicted classes.
-
-    """
     X_train, X_test = X
     y_train, y_test = y
     distances = None
